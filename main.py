@@ -1,79 +1,84 @@
-import sys
-
-# Словник для зберігання контактів
 contacts = {}
 
-# Функція обробник для команди "hello"
-def hello():
-    print("How can I help you?")
-
-# Функція обробник для команди "add"
-def add_contact(name, phone):
-    contacts[name] = phone
-    print(f"Contact {name} with phone number {phone} has been added")
-
-# Функція обробник для команди "change"
-def change_phone(name, phone):
-    if name in contacts:
-        contacts[name] = phone
-        print(f"Phone number for {name} has been changed to {phone}")
-    else:
-        print(f"{name} is not in contacts")
-
-# Функція обробник для команди "phone"
-def show_phone(name):
-    if name in contacts:
-        print(f"The phone number for {name} is {contacts[name]}")
-    else:
-        print(f"{name} is not in contacts")
-
-# Функція обробник для команди "show all"
-def show_all():
-    if not contacts:
-        print("There are no contacts")
-    else:
-        print("Contacts:")
-        for name, phone in contacts.items():
-            print(f"{name}: {phone}")
-
-# Декоратор для перехоплення помилок
-def handle_errors(func):
-    def wrapper(*args):
+def input_error(func):
+    def inner(*args, **kwargs):
         try:
-            func(*args)
-        except Exception as e:
-            print(f"Error: {e}")
-    return wrapper
+            return func(*args, **kwargs)
+        except KeyError:
+            return "Invalid key entered. Please try again."
+        except ValueError:
+            return "Invalid value entered. Please try again."
+        except IndexError:
+            return "Invalid index entered. Please try again."
+    return inner
 
-# Функція парсера команд
-def parse_command(command):
-    tokens = command.strip().split()
-    if not tokens:
-        return None, None
-    if tokens[0].lower() == "hello":
-        return hello, None
-    if tokens[0].lower() == "add" and len(tokens) == 3:
-        return add_contact, (tokens[1], tokens[2])
-    if tokens[0].lower() == "change" and len(tokens) == 3:
-        return change_phone, (tokens[1], tokens[2])
-    if tokens[0].lower() == "phone" and len(tokens) == 2:
-        return show_phone, (tokens[1],)
-    if tokens[0].lower() == "show" and tokens[1].lower() == "all":
-        return show_all, None
-    return None, None
+@input_error
+def hello(*args):
+    return "How can I help you?"
 
-# Основна функція бота
-@handle_errors
+@input_error
+def add(*args):
+    list_of_param = args[0].split()
+    name = list_of_param[0]
+    phone_numbers = list_of_param[1:]
+    contacts[name] = phone_numbers
+    if not phone_numbers:
+        raise IndexError()
+    
+    return f"Contact {name} added  {phone_numbers} successfully."
+
+@input_error
+def change(*args):
+    name, phone_number = args.split()
+    if name in contacts:
+        contacts[name] = [phone_number]
+        return "Phone number updated successfully."
+    else:
+        return "Contact not found."
+
+@input_error
+def phone(*args):
+    if args in contacts:
+        return f"Phone number for {args} is {contacts[args]}"
+    else:
+        return "Contact not found."
+
+@input_error
+def show_all(*args):
+    if contacts:
+        result = ""
+        for name, phone_numbers in contacts.items():
+            result += f"{name}: {phone_numbers}\n"
+        return result.strip()
+    else:
+        return "No contacts found."
+
+def exit(*args):
+    return "Good bye!"
+
+def no_command(*args):
+    return "Unknown command, try again"
+
+COMMANDS = {hello: 'hello',
+            add: 'add',
+            change: 'change',
+            phone: 'phone',
+            show_all: 'show all',
+            exit: 'exit'}
+
+def command_handler(text):
+    for command, kword in COMMANDS.items():
+        if text.startswith(kword):
+            return command, text.replace(kword, '').strip()
+    return no_command, None
+
 def main():
     while True:
-        command = input("> ")
-        if command.lower() == "exit":
-            sys.exit()
-        func, args = parse_command(command)
-        if func:
-            func(*args)
-        else:
-            print("Unknown command")
+        user_input = input("Enter a command: ").lower()
+        command, data = command_handler(user_input)
+        print(command(data))
+        if command == exit:
+            break
 
 if __name__ == '__main__':
     main()
